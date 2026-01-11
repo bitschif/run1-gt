@@ -2,14 +2,13 @@
 #===============================================================================
 # STEP 01: Simulate Data
 # Tools: simutator (iqbal-lab-org/simutator), art_illumina
-# Simutator tạo mutations, ART tạo reads
 #===============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/config/config. sh"
-source "${SCRIPT_DIR}/scripts/helper_functions. sh"
+source "${SCRIPT_DIR}/config/config.sh"
+source "${SCRIPT_DIR}/scripts/helper_functions.sh"
 
 log_info "===== STEP 01: Simulate Data ====="
 start_timer
@@ -23,8 +22,6 @@ check_file "${REF_FASTA}" || exit 1
 
 #-------------------------------------------------------------------------------
 # 2. Generate mutations with simutator
-# Syntax: simutator mutate_fasta [options] in. fasta out_prefix
-# Options: --snps DIST, --dels DIST: LEN, --ins DIST: LEN, --seed
 #-------------------------------------------------------------------------------
 log_info "Generating mutations with simutator..."
 log_info "  SNPs: every ${SNP_DIST} bp"
@@ -33,7 +30,6 @@ log_info "  Insertions: ${INS_LEN} bp every ${INS_DIST} bp"
 
 SIM_PREFIX="${SIM_DIR}/${PREFIX}"
 
-# Run simutator với tất cả mutation types trong 1 lệnh
 simutator mutate_fasta \
     --snps ${SNP_DIST} \
     --dels ${DEL_DIST}:${DEL_LEN} \
@@ -46,11 +42,9 @@ check_exit "simutator"
 
 #-------------------------------------------------------------------------------
 # 3. Find output files from simutator
-# Output format: prefix. snp.dist-X.del. dist-Y-len-Z.ins.dist-A-len-B.fa
 #-------------------------------------------------------------------------------
 log_info "Processing simutator output..."
 
-# Find mutated FASTA (có thể có nhiều patterns)
 MUTATED_FASTA=$(ls ${SIM_PREFIX}*.fa 2>/dev/null | grep -v ".original" | head -1)
 ORIGINAL_VCF=$(ls ${SIM_PREFIX}*.original.vcf 2>/dev/null | head -1)
 
@@ -63,16 +57,27 @@ fi
 log_info "  Mutated FASTA: ${MUTATED_FASTA}"
 log_info "  Truth VCF: ${ORIGINAL_VCF}"
 
-# Index mutated FASTA
 samtools faidx "${MUTATED_FASTA}"
 
 #-------------------------------------------------------------------------------
-# 4. Process truth VCF
+# 4. Process truth VCF - Fix missing header
 #-------------------------------------------------------------------------------
 log_info "Processing truth VCF..."
 
+# Create fixed VCF with proper header
+FIXED_VCF="${SIM_DIR}/${PREFIX}_truth_fixed.vcf"
+
+# Add missing FORMAT header and fix VCF
+{
+    grep "^##" "${ORIGINAL_VCF}" | head -n -1
+    echo '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
+    grep "^##" "${ORIGINAL_VCF}" | tail -1
+    grep "^#CHROM" "${ORIGINAL_VCF}"
+    grep -v "^#" "${ORIGINAL_VCF}"
+} > "${FIXED_VCF}"
+
 # Sort, compress, index
-bcftools sort "${ORIGINAL_VCF}" -Oz -o "${TRUTH_VCF}"
+bcftools sort "${FIXED_VCF}" -Oz -o "${TRUTH_VCF}"
 tabix -p vcf "${TRUTH_VCF}"
 
 # Create separate SNP and INDEL files for benchmarking
@@ -82,90 +87,60 @@ tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
 tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 
 # Count variants
-N_SNP=$(bcftools view -H -v snps "${TRUTH_VCF}" | wc -l)
-N_INDEL=$(bcftools view -H -v indels "${TRUTH_VCF}" | wc -l)
-N_TOTAL=$((N_SNP + N_INDEL))
+TOTAL_VARS=$(bcftools view -H "${TRUTH_VCF}" | wc -l)
+SNP_COUNT=$(bcftools view -H -v snps "${TRUTH_VCF}" | wc -l)
+INDEL_COUNT=$(bcftools view -H -v indels "${TRUTH_VCF}" | wc -l)
 
-log_info "Truth variants: ${N_TOTAL} total (${N_SNP} SNPs, ${N_INDEL} INDELs)"
+log_info "  Total variants: ${TOTAL_VARS}"
+log_info "  SNPs: ${SNP_COUNT}"
+log_info "  Indels: ${INDEL_COUNT}"
+
+# Cleanup
+rm -f "${FIXED_VCF}"
 
 #-------------------------------------------------------------------------------
-# 5. Simulate reads with ART Illumina
+# 5. Generate reads with ART
 #-------------------------------------------------------------------------------
-log_info "Simulating Illumina reads with ART..."
+log_info "Generating reads with ART Illumina..."
 log_info "  Coverage: ${COVERAGE}x"
 log_info "  Read length: ${READ_LENGTH} bp"
-log_info "  Fragment:  ${FRAGMENT_MEAN} ± ${FRAGMENT_SD} bp"
-log_info "  Platform: ${ART_PLATFORM}"
+log_info "  Fragment: ${FRAGMENT_MEAN} +/- ${FRAGMENT_SD} bp"
 
 READ_PREFIX="${SIM_DIR}/${PREFIX}"
 
 art_illumina \
-    -ss "${ART_PLATFORM}" \
+    -ss ${ART_PLATFORM} \
     -i "${MUTATED_FASTA}" \
     -p \
-    -l "${READ_LENGTH}" \
-    -f "${COVERAGE}" \
-    -m "${FRAGMENT_MEAN}" \
-    -s "${FRAGMENT_SD}" \
+    -l ${READ_LENGTH} \
+    -f ${COVERAGE} \
+    -m ${FRAGMENT_MEAN} \
+    -s ${FRAGMENT_SD} \
+    -rs ${SEED} \
     -o "${READ_PREFIX}_" \
-    -na \
-    --rndSeed "${SEED}" \
-    2>&1 | tee "${LOG_DIR}/art_illumina. log"
+    -na
 
-check_exit "ART Illumina"
+check_exit "art_illumina"
 
-# Rename and compress
+# Rename output files
 mv "${READ_PREFIX}_1.fq" "${READ_PREFIX}_R1.fastq"
 mv "${READ_PREFIX}_2.fq" "${READ_PREFIX}_R2.fastq"
 
-log_info "Compressing FASTQ files..."
+# Compress
 gzip -f "${READ_PREFIX}_R1.fastq"
 gzip -f "${READ_PREFIX}_R2.fastq"
+
+log_info "  R1: ${READ_PREFIX}_R1.fastq.gz"
+log_info "  R2: ${READ_PREFIX}_R2.fastq.gz"
 
 #-------------------------------------------------------------------------------
 # 6. Create callable regions BED
 #-------------------------------------------------------------------------------
 log_info "Creating callable regions BED..."
 
-# Get chromosome length and create full region BED
 awk -v OFS='\t' '{print $1, 0, $2}' "${REF_FAI}" > "${HIGH_CONF_BED}"
 
-#-------------------------------------------------------------------------------
-# 7. Summary
-#-------------------------------------------------------------------------------
-R1_COUNT=$(zcat "${READ_PREFIX}_R1.fastq.gz" | wc -l)
-R1_READS=$((R1_COUNT / 4))
-
-cat > "${SIM_DIR}/simulation_info.txt" << EOF
-=== SIMULATION INFO ===
-Reference: ${REF_FASTA}
-Chromosome: ${CHR_TO_USE}
-Mutated FASTA: ${MUTATED_FASTA}
-Truth VCF: ${TRUTH_VCF}
-
-Mutations:
-  Total:  ${N_TOTAL}
-  SNPs: ${N_SNP}
-  INDELs: ${N_INDEL}
-
-Simutator parameters:
-  SNP distance: ${SNP_DIST} bp
-  Deletion:  ${DEL_LEN} bp every ${DEL_DIST} bp
-  Insertion: ${INS_LEN} bp every ${INS_DIST} bp
-
-Read simulation:
-  Read pairs: ${R1_READS}
-  Coverage: ${COVERAGE}x
-  Read length: ${READ_LENGTH} bp
-  Fragment size: ${FRAGMENT_MEAN} ± ${FRAGMENT_SD} bp
-  Platform: ${ART_PLATFORM}
-
-Output files:
-  R1: ${READ_PREFIX}_R1.fastq.gz
-  R2: ${READ_PREFIX}_R2.fastq.gz
-EOF
-
-cat "${SIM_DIR}/simulation_info.txt"
+log_info "  BED: ${HIGH_CONF_BED}"
 
 end_timer "01_simulate_data"
 log_info "===== Simulation Complete ====="
