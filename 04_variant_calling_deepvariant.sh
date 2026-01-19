@@ -43,7 +43,7 @@ log_info "  Model: WGS"
 
 docker run \
     --rm \
-    -v "${ABS_REF_DIR}:/ref: ro" \
+    -v "${ABS_REF_DIR}:/ref:ro" \
     -v "${ABS_PREPROC_DIR}:/input:ro" \
     -v "${ABS_OUT_DIR}:/output" \
     ${DEEPVARIANT_IMAGE} \
@@ -52,7 +52,7 @@ docker run \
     --ref="/ref/${REF_BASENAME}" \
     --reads="/input/${BAM_BASENAME}" \
     --output_vcf="/output/${PREFIX}_${CALLER}_raw.vcf.gz" \
-    --output_gvcf="/output/${PREFIX}_${CALLER}. g.vcf.gz" \
+    --output_gvcf="/output/${PREFIX}_${CALLER}.g.vcf.gz" \
     --intermediate_results_dir="/output/intermediate" \
     --num_shards="${THREADS}" \
     2>&1 | tee "${LOG_DIR}/${CALLER}.log"

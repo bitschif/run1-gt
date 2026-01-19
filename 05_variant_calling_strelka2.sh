@@ -17,7 +17,7 @@ start_timer
 check_tool docker || exit 1
 
 # Input
-source "${PREPROC_DIR}/bam_path. sh"
+source "${PREPROC_DIR}/bam_path.sh"
 check_file "${FINAL_BAM}" || exit 1
 
 OUT_DIR="${VARIANT_DIR}/${CALLER}"
@@ -46,7 +46,7 @@ docker run \
     -v "${ABS_PREPROC_DIR}:/input:ro" \
     -v "${ABS_OUT_DIR}:/output" \
     ${STRELKA2_IMAGE} \
-    configureStrelkaGermlineWorkflow. py \
+    configureStrelkaGermlineWorkflow.py \
     --bam "/input/${BAM_BASENAME}" \
     --referenceFasta "/ref/${REF_BASENAME}" \
     --runDir "/output/strelka_run" \
@@ -96,8 +96,8 @@ tabix -p vcf "${PASS_VCF}"
 
 # Split by type
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
-bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf. gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp. vcf.gz"
+bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
+tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------

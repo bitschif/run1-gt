@@ -24,7 +24,7 @@ OUT_DIR="${VARIANT_DIR}/${CALLER}"
 #-------------------------------------------------------------------------------
 log_info "Running GATK HaplotypeCaller..."
 
-RAW_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_raw.vcf. gz"
+RAW_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_raw.vcf.gz"
 
 gatk HaplotypeCaller \
     ${JAVA_OPTS} \
@@ -45,7 +45,7 @@ log_info "Applying hard filters..."
 # SNPs
 gatk SelectVariants -V "${RAW_VCF}" -select-type SNP -O "${OUT_DIR}/snps_raw.vcf.gz"
 gatk VariantFiltration \
-    -V "${OUT_DIR}/snps_raw. vcf.gz" \
+    -V "${OUT_DIR}/snps_raw.vcf.gz" \
     -O "${OUT_DIR}/snps_filtered.vcf.gz" \
     --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || SOR > 3.0" \
     --filter-name "SNP_FILTER"
@@ -76,8 +76,8 @@ tabix -p vcf "${PASS_VCF}"
 # Split by type for benchmarking
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf. gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel. vcf.gz"
+tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 4. Stats

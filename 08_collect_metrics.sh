@@ -30,7 +30,7 @@ STATS_FILE="${METRICS_DIR}/variant_statistics.csv"
 echo "caller,total,snps,indels,titv_ratio" > "${STATS_FILE}"
 
 for caller in "${CALLERS[@]}"; do
-    vcf="${VARIANT_DIR}/${caller}/${PREFIX}_${caller}_pass. vcf.gz"
+    vcf="${VARIANT_DIR}/${caller}/${PREFIX}_${caller}_pass.vcf.gz"
     stats="${VARIANT_DIR}/${caller}/${PREFIX}_${caller}_stats.txt"
     
     if [[ -f "${vcf}" ]]; then
@@ -45,7 +45,7 @@ done
 #-------------------------------------------------------------------------------
 # 3. Collect runtime metrics
 #-------------------------------------------------------------------------------
-cp "${LOG_DIR}/runtime. csv" "${METRICS_DIR}/"
+cp "${LOG_DIR}/runtime.csv" "${METRICS_DIR}/"
 
 #-------------------------------------------------------------------------------
 # 4. Generate summary report
@@ -95,7 +95,7 @@ RUNTIME
 ================================================================================
 EOF
 
-column -t -s',' "${LOG_DIR}/runtime. csv" >> "${REPORT}"
+column -t -s',' "${LOG_DIR}/runtime.csv" >> "${REPORT}"
 
 cat "${REPORT}"
 

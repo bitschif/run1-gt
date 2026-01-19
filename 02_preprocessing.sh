@@ -36,7 +36,7 @@ check_exit "FastQC raw"
 #-------------------------------------------------------------------------------
 log_info "[2/6] fastp trimming..."
 
-TRIM_R1="${PREPROC_DIR}/${PREFIX}_trimmed_R1.fastq. gz"
+TRIM_R1="${PREPROC_DIR}/${PREFIX}_trimmed_R1.fastq.gz"
 TRIM_R2="${PREPROC_DIR}/${PREFIX}_trimmed_R2.fastq.gz"
 
 fastp \
@@ -48,7 +48,7 @@ fastp \
     --cut_window_size 4 \
     --cut_mean_quality "${MIN_BASE_QUALITY}" \
     --thread "${THREADS}" \
-    --json "${PREPROC_DIR}/${PREFIX}_fastp. json" \
+    --json "${PREPROC_DIR}/${PREFIX}_fastp.json" \
     --html "${PREPROC_DIR}/${PREFIX}_fastp.html" \
     2>&1 | tee "${LOG_DIR}/fastp.log"
 
@@ -110,7 +110,7 @@ check_exit "MarkDuplicates"
 #-------------------------------------------------------------------------------
 log_info "[6/6] Base Quality Score Recalibration..."
 
-RECAL_TABLE="${PREPROC_DIR}/${PREFIX}_recal. table"
+RECAL_TABLE="${PREPROC_DIR}/${PREFIX}_recal.table"
 FINAL_BAM="${PREPROC_DIR}/${PREFIX}_recal.bam"
 
 # Check if known sites exist

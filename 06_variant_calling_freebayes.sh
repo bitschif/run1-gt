@@ -36,13 +36,13 @@ freebayes \
     --min-base-quality "${MIN_BASE_QUALITY}" \
     --genotype-qualities \
     > "${RAW_VCF}" \
-    2> "${LOG_DIR}/${CALLER}. log"
+    2> "${LOG_DIR}/${CALLER}.log"
 
 check_exit "FreeBayes"
 
 # Compress and index
 bgzip -f "${RAW_VCF}"
-tabix -p vcf "${RAW_VCF}. gz"
+tabix -p vcf "${RAW_VCF}.gz"
 
 #-------------------------------------------------------------------------------
 # 2. Filter and normalize
@@ -54,7 +54,7 @@ FILTERED_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_filtered.vcf.gz"
 # Quality filter
 bcftools filter \
     -i 'QUAL>30 && INFO/DP>10' \
-    "${RAW_VCF}. gz" | \
+    "${RAW_VCF}.gz" | \
 bcftools norm \
     -f "${REF_FASTA}" \
     -m -both \
@@ -79,10 +79,10 @@ bcftools view -f "PASS,." -Oz -o "${PASS_VCF}"
 tabix -p vcf "${PASS_VCF}"
 
 # Split by type
-bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp. vcf.gz"
+bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf. gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel. vcf.gz"
+tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 4. Stats

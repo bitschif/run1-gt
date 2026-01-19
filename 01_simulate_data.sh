@@ -112,6 +112,7 @@ RAW_MERGED_VCF="${TMP_MERGE_DIR}/${PREFIX}.truth.raw.sorted.vcf.gz"
 bcftools norm \
     --check-ref x \
     -f "${REF_FASTA}" \
+    -m -both \
     -d both \
     "${RAW_MERGED_VCF}" \
     -Oz -o "${TRUTH_VCF}"
@@ -136,15 +137,19 @@ samtools faidx "${MUTATED_FASTA}"
 log_info "Combined mutated FASTA written: ${MUTATED_FASTA}"
 
 # Create separate SNP and INDEL files
-bcftools view -v snps "${TRUTH_VCF}" -Oz -o "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
-bcftools view -v indels "${TRUTH_VCF}" -Oz -o "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
+TRUTH_TYPED_VCF="${SIM_DIR}/${PREFIX}_truth_typed.vcf.gz"
+bcftools +fill-tags "${TRUTH_VCF}" -Oz -o "${TRUTH_TYPED_VCF}" -- -t TYPE
+tabix -p vcf "${TRUTH_TYPED_VCF}"
+
+bcftools view -i 'TYPE="snp"' "${TRUTH_TYPED_VCF}" -Oz -o "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
+bcftools view -i 'TYPE="indel"' "${TRUTH_TYPED_VCF}" -Oz -o "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz"
 tabix -p vcf "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz"
 
 # Count variants
 TOTAL_VARS=$(bcftools view -H "${TRUTH_VCF}" | wc -l)
-SNP_COUNT=$(bcftools view -H -v snps "${TRUTH_VCF}" | wc -l)
-INDEL_COUNT=$(bcftools view -H -v indels "${TRUTH_VCF}" | wc -l)
+SNP_COUNT=$(bcftools view -H "${SIM_DIR}/${PREFIX}_truth_snp.vcf.gz" | wc -l)
+INDEL_COUNT=$(bcftools view -H "${SIM_DIR}/${PREFIX}_truth_indel.vcf.gz" | wc -l)
 
 log_info "  Total variants: ${TOTAL_VARS}"
 log_info "  SNPs: ${SNP_COUNT}"

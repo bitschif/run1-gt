@@ -8,8 +8,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/config/config. sh"
-source "${SCRIPT_DIR}/scripts/helper_functions. sh"
+source "${SCRIPT_DIR}/config/config.sh"
+source "${SCRIPT_DIR}/scripts/helper_functions.sh"
 
 log_info "===== STEP 07: Benchmarking ====="
 start_timer

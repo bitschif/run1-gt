@@ -79,7 +79,7 @@ LABELS <- c(
 theme_pub <- function(base_size = 12) {
   theme_minimal(base_size = base_size) +
     theme(
-      plot. title = element_text(hjust = 0.5, face = "bold", size = base_size + 2),
+      plot.title = element_text(hjust = 0.5, face = "bold", size = base_size + 2),
       plot.subtitle = element_text(hjust = 0.5, color = "grey40", size = base_size),
       axis.title = element_text(face = "bold"),
       axis.text = element_text(color = "black"),
@@ -109,8 +109,8 @@ save_plot <- function(plot, name, width = 10, height = 6) {
 #-------------------------------------------------------------------------------
 cat("[3/7] Loading data...\n")
 
-bench_file <- file.path(metrics_dir, "benchmark_summary. tsv")
-runtime_file <- file.path(metrics_dir, "runtime. csv")
+bench_file <- file.path(metrics_dir, "benchmark_summary.tsv")
+runtime_file <- file.path(metrics_dir, "runtime.csv")
 stats_file <- file.path(metrics_dir, "variant_statistics.csv")
 
 # Load benchmark data
@@ -143,7 +143,7 @@ data <- data %>%
   )
 
 # Load runtime data
-if (file. exists(runtime_file)) {
+if (file.exists(runtime_file)) {
   runtime_data <- read_csv(runtime_file, show_col_types = FALSE)
   cat(sprintf("  Loaded runtime data\n"))
 } else {
@@ -378,7 +378,7 @@ lollipop_data <- data %>%
 p6 <- ggplot(lollipop_data, aes(x = reorder(caller_label, f1), y = f1, color = caller)) +
   geom_segment(aes(xend = caller_label, y = 0.9, yend = f1), linewidth = 2) +
   geom_point(size = 8) +
-  geom_text(aes(label = sprintf("%. 3f", f1)), hjust = -0.3, size = 4, fontface = "bold") +
+  geom_text(aes(label = sprintf("%.3f", f1)), hjust = -0.3, size = 4, fontface = "bold") +
   scale_color_manual(values = COLORS, guide = "none") +
   scale_y_continuous(limits = c(0.9, 1.02), labels = percent, breaks = seq(0.9, 1, 0.02)) +
   coord_flip() +
@@ -391,7 +391,7 @@ p6 <- ggplot(lollipop_data, aes(x = reorder(caller_label, f1), y = f1, color = c
   theme_pub() +
   theme(
     axis.text.x = element_text(angle = 0, hjust = 0.5),
-    panel.grid.major. y = element_blank()
+    panel.grid.major.y = element_blank()
   )
 
 save_plot(p6, "06_f1_ranking_lollipop", width = 9, height = 5)
@@ -406,7 +406,7 @@ radar_data <- data %>%
   mutate(
     # Thêm metrics bổ sung
     specificity = 1 - (fp / (tp + fp)),  # Approximation
-    . before = precision
+    .before = precision
   ) %>%
   select(-specificity) %>%  # Remove nếu không có đủ data
   pivot_longer(-caller, names_to = "metric", values_to = "value") %>%
@@ -437,7 +437,7 @@ p7 <- ggplot(radar_data, aes(x = metric, y = value, fill = caller)) +
 save_plot(p7, "07_multi_metric_comparison", width = 10, height = 6)
 
 #--- Plot 8: SNP vs INDEL Comparison ---#
-cat("  Creating SNP vs INDEL comparison.. .\n")
+cat("  Creating SNP vs INDEL comparison...\n")
 
 snp_indel_data <- data %>%
   filter(varianttype %in% c("SNP", "INDEL")) %>%
@@ -496,7 +496,7 @@ caller_runtime <- runtime_data %>%
       grepl("gatk", step, ignore.case = TRUE) ~ "gatk",
       grepl("deepvariant", step, ignore.case = TRUE) ~ "deepvariant",
       grepl("strelka2", step, ignore.case = TRUE) ~ "strelka2",
-      grepl("freebayes", step, ignore. case = TRUE) ~ "freebayes"
+      grepl("freebayes", step, ignore.case = TRUE) ~ "freebayes"
     ),
     minutes = duration_seconds / 60
   ) %>%
@@ -522,7 +522,7 @@ if (nrow(caller_runtime) > 0) {
 }
 
 #--- Plot 10: Error Rate Comparison ---#
-cat("  Creating error rate comparison.. .\n")
+cat("  Creating error rate comparison...\n")
 
 error_data <- data %>%
   filter(varianttype == "ALL") %>%
@@ -541,7 +541,7 @@ error_data <- data %>%
 p10 <- ggplot(error_data, aes(x = caller_label, y = rate, fill = error_type)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7, color = "black", linewidth = 0.3) +
   geom_text(
-    aes(label = sprintf("%. 2f%%", rate * 100)),
+    aes(label = sprintf("%.2f%%", rate * 100)),
     position = position_dodge(width = 0.8),
     vjust = -0.3, size = 3
   ) +
@@ -605,7 +605,7 @@ cat("  ✓ Saved:  11_detailed_metrics_table.png\n")
 #-------------------------------------------------------------------------------
 # 7. Summary Dashboard
 #-------------------------------------------------------------------------------
-cat("[7/7] Creating summary dashboard.. .\n")
+cat("[7/7] Creating summary dashboard...\n")
 
 # Combine key plots into dashboard
 dashboard <- (
@@ -651,7 +651,7 @@ summary_csv <- data %>%
   arrange(desc(F1))
 
 write_csv(summary_csv, file.path(output_dir, "benchmark_summary_table.csv"))
-cat("  ✓ Saved: benchmark_summary_table. csv\n")
+cat("  ✓ Saved: benchmark_summary_table.csv\n")
 
 # Detailed by variant type
 detailed_csv <- data %>%
@@ -659,7 +659,7 @@ detailed_csv <- data %>%
   select(Caller, VariantType = varianttype, TP = tp, FP = fp, FN = fn,
          Precision = precision, Recall = recall, F1 = f1)
 
-write_csv(detailed_csv, file.path(output_dir, "benchmark_detailed_table. csv"))
+write_csv(detailed_csv, file.path(output_dir, "benchmark_detailed_table.csv"))
 cat("  ✓ Saved: benchmark_detailed_table.csv\n")
 
 #-------------------------------------------------------------------------------
