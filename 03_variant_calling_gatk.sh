@@ -16,6 +16,9 @@ start_timer
 # Input
 source "${PREPROC_DIR}/bam_path.sh"
 check_file "${FINAL_BAM}" || exit 1
+check_tool bcftools || exit 1
+check_file "${TRUTH_VCF}" || exit 1
+check_file "${HIGH_CONF_BED}" || exit 1
 
 OUT_DIR="${VARIANT_DIR}/${CALLER}"
 
@@ -80,7 +83,40 @@ tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
-# 4. Stats
+# 4. Normalize for benchmarking
+#-------------------------------------------------------------------------------
+log_info "Normalizing variants for benchmarking..."
+
+NORMALIZED_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_pass.norm.vcf.gz"
+normalize_vcf "${PASS_VCF}" "${NORMALIZED_VCF}" "${REF_FASTA}"
+
+TRUTH_NORM="${BENCH_DIR}/truth/${PREFIX}_truth.norm.vcf.gz"
+if [[ ! -f "${TRUTH_NORM}" ]]; then
+    ensure_dir "$(dirname "${TRUTH_NORM}")"
+    normalize_vcf "${TRUTH_VCF}" "${TRUTH_NORM}" "${REF_FASTA}"
+fi
+
+#-------------------------------------------------------------------------------
+# 5. Benchmarking with hap.py
+#-------------------------------------------------------------------------------
+log_info "Benchmarking ${CALLER} with hap.py..."
+
+BENCH_CALLER="${BENCH_DIR}/${CALLER}"
+ensure_dir "${BENCH_CALLER}/happy"
+HAPPY_PREFIX="${BENCH_CALLER}/happy/${PREFIX}_${CALLER}"
+run_happy "${TRUTH_NORM}" "${NORMALIZED_VCF}" "${HAPPY_PREFIX}"
+
+SUMMARY_CSV="${HAPPY_PREFIX}.summary.csv"
+METRICS_TSV="${BENCH_CALLER}/${PREFIX}_${CALLER}_metrics.tsv"
+if [[ -f "${SUMMARY_CSV}" ]]; then
+    write_happy_metrics "${SUMMARY_CSV}" "${CALLER}" "${HAPPY_PREFIX}" "${METRICS_TSV}"
+    update_benchmark_summary "${CALLER}" "${METRICS_TSV}"
+else
+    log_warn "hap.py summary not found for ${CALLER}"
+fi
+
+#-------------------------------------------------------------------------------
+# 6. Stats
 #-------------------------------------------------------------------------------
 bcftools stats "${PASS_VCF}" > "${OUT_DIR}/${PREFIX}_${CALLER}_stats.txt"
 
