@@ -68,17 +68,17 @@ RAW_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_raw.vcf.gz"
 PASS_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_pass.vcf.gz"
 
 # Index
-tabix -p vcf "${RAW_VCF}"
+tabix -f -p vcf "${RAW_VCF}"
 
 # DeepVariant outputs mostly PASS, but filter to be safe
 bcftools view -f "PASS,." "${RAW_VCF}" -Oz -o "${PASS_VCF}"
-tabix -p vcf "${PASS_VCF}"
+tabix -f -p vcf "${PASS_VCF}"
 
 # Split by type
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 4. Stats

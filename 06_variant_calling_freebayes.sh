@@ -42,7 +42,7 @@ check_exit "FreeBayes"
 
 # Compress and index
 bgzip -f "${RAW_VCF}"
-tabix -p vcf "${RAW_VCF}.gz"
+tabix -f -p vcf "${RAW_VCF}.gz"
 
 #-------------------------------------------------------------------------------
 # 2. Filter and normalize
@@ -60,7 +60,7 @@ bcftools norm \
     -m -both \
     -Oz -o "${FILTERED_VCF}"
 
-tabix -p vcf "${FILTERED_VCF}"
+tabix -f -p vcf "${FILTERED_VCF}"
 
 #-------------------------------------------------------------------------------
 # 3. Extract high-quality variants
@@ -76,13 +76,13 @@ bcftools filter \
     "${FILTERED_VCF}" | \
 bcftools view -f "PASS,." -Oz -o "${PASS_VCF}"
 
-tabix -p vcf "${PASS_VCF}"
+tabix -f -p vcf "${PASS_VCF}"
 
 # Split by type
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 4. Stats
