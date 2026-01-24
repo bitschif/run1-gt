@@ -20,12 +20,26 @@ CALLERS=("gatk" "deepvariant" "strelka2" "freebayes")
 # Main benchmarking summary
 #-------------------------------------------------------------------------------
 SUMMARY="${BENCH_DIR}/benchmark_summary.tsv"
-echo -e "Caller\tVariantType\tTP\tFP\tFN\tPrecision\tRecall\tF1\tROC_AUC" > "${SUMMARY}"
+echo -e "Caller\tVariantType\tTP\tFP\tFN\tPrecision\tRecall\tF1\tROC_AUC\tRuntimeSeconds" > "${SUMMARY}"
+
+declare -A RUNTIME_MAP=()
+if [[ -f "${LOG_DIR}/runtime.csv" ]]; then
+    while IFS=',' read -r step duration; do
+        case "${step}" in
+            03_gatk) RUNTIME_MAP[gatk]="${duration}" ;;
+            04_deepvariant) RUNTIME_MAP[deepvariant]="${duration}" ;;
+            05_strelka2) RUNTIME_MAP[strelka2]="${duration}" ;;
+            06_freebayes) RUNTIME_MAP[freebayes]="${duration}" ;;
+        esac
+    done < "${LOG_DIR}/runtime.csv"
+else
+    log_warn "runtime.csv not found; runtime metrics will be NA."
+fi
 
 for caller in "${CALLERS[@]}"; do
     METRICS_TSV="${BENCH_DIR}/${caller}/${PREFIX}_${caller}_metrics.tsv"
     if [[ -f "${METRICS_TSV}" ]]; then
-        update_benchmark_summary "${caller}" "${METRICS_TSV}"
+        update_benchmark_summary "${caller}" "${METRICS_TSV}" "${RUNTIME_MAP[${caller}]:-NA}"
     else
         log_warn "  Metrics not found for ${caller}. Run variant calling script first."
     fi

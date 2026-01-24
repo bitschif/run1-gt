@@ -233,8 +233,9 @@ PY
 update_benchmark_summary() {
     local caller="$1"
     local metrics_tsv="$2"
+    local runtime_seconds="${3:-NA}"
     local summary_file="${BENCH_DIR}/benchmark_summary.tsv"
-    local header="Caller\tVariantType\tTP\tFP\tFN\tPrecision\tRecall\tF1\tROC_AUC"
+    local header="Caller\tVariantType\tTP\tFP\tFN\tPrecision\tRecall\tF1\tROC_AUC\tRuntimeSeconds"
 
     if [[ -f "${summary_file}" ]]; then
         awk -v caller="${caller}" 'NR==1 {print; next} $1!=caller {print}' "${summary_file}" > "${summary_file}.tmp"
@@ -244,6 +245,6 @@ update_benchmark_summary() {
     fi
 
     if [[ -f "${metrics_tsv}" ]]; then
-        tail -n +2 "${metrics_tsv}" >> "${summary_file}"
+        awk -v runtime="${runtime_seconds}" 'NR>1 {print $0 "\t" runtime}' "${metrics_tsv}" >> "${summary_file}"
     fi
 }
