@@ -41,8 +41,12 @@ log_info "Running DeepVariant via Docker..."
 log_info "  Image: ${DEEPVARIANT_IMAGE}"
 log_info "  Model: WGS"
 
+DOCKER_USER_NAME="${RUN_AS_USER:-${USER:-hxt}}"
+DOCKER_USER="$(id -u "${DOCKER_USER_NAME}")":"$(id -g "${DOCKER_USER_NAME}")"
+
 docker run \
     --rm \
+    --user "${DOCKER_USER}" \
     -v "${ABS_REF_DIR}:/ref:ro" \
     -v "${ABS_PREPROC_DIR}:/input:ro" \
     -v "${ABS_OUT_DIR}:/output" \
