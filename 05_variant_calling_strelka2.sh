@@ -87,18 +87,18 @@ fi
 # Copy to standard location
 RAW_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_raw.vcf.gz"
 cp "${STRELKA_VCF}" "${RAW_VCF}"
-tabix -p vcf "${RAW_VCF}"
+tabix -f -p vcf "${RAW_VCF}"
 
 # Extract PASS variants
 PASS_VCF="${OUT_DIR}/${PREFIX}_${CALLER}_pass.vcf.gz"
 bcftools view -f PASS "${RAW_VCF}" -Oz -o "${PASS_VCF}"
-tabix -p vcf "${PASS_VCF}"
+tabix -f -p vcf "${PASS_VCF}"
 
 # Split by type
 bcftools view -v snps "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
 bcftools view -v indels "${PASS_VCF}" -Oz -o "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
-tabix -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_snp.vcf.gz"
+tabix -f -p vcf "${OUT_DIR}/${PREFIX}_${CALLER}_indel.vcf.gz"
 
 #-------------------------------------------------------------------------------
 # 5. Stats
