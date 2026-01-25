@@ -14,8 +14,36 @@ runtime_tsv  <- file.path(project_dir, "results", "runtime.tsv")
 bench_dir    <- file.path(project_dir, "results", "benchmarks")
 plot_dir     <- file.path(project_dir, "results", "plots")
 
-if (!file.exists(metrics_long)) stop("Missing results/metrics_long.tsv. Run hap.py and metrics export first.")
-if (!file.exists(runtime_tsv))  stop("Missing results/runtime.tsv. Run runtime export first.")
+if (!file.exists(metrics_long)) {
+  metric_files <- list.files(bench_dir, pattern = "_metrics\\.tsv$", recursive = TRUE, full.names = TRUE)
+  if (length(metric_files) == 0) {
+    stop("Missing results/metrics_long.tsv and no *_metrics.tsv files found. Run hap.py first.")
+  }
+
+  metrics_raw <- map_dfr(metric_files, function(path) {
+    fread(path) %>% as_tibble()
+  })
+
+  metrics_long_data <- metrics_raw %>%
+    rename(
+      caller = Caller,
+      Type = VariantType,
+      `METRIC.Precision` = Precision,
+      `METRIC.Recall` = Recall,
+      `METRIC.F1_Score` = F1
+    ) %>%
+    mutate(
+      caller = tolower(caller),
+      Type = toupper(Type)
+    )
+
+  fwrite(metrics_long_data, metrics_long, sep = "\t")
+}
+
+has_runtime <- file.exists(runtime_tsv)
+if (!has_runtime) {
+  warning("Missing results/runtime.tsv. Skipping runtime plots.")
+}
 
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -88,23 +116,25 @@ dev.off()
 # -------------------------
 # 4) Runtime plot (wall + max RSS)
 # -------------------------
-rt <- fread(runtime_tsv) %>%
-  as_tibble() %>%
-  mutate(caller = factor(caller, levels = caller_levels))
+if (has_runtime) {
+  rt <- fread(runtime_tsv) %>%
+    as_tibble() %>%
+    mutate(caller = factor(caller, levels = caller_levels))
 
-p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
-  theme_bw()
+  p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
+    theme_bw()
 
-ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
+  ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
 
-p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
-  theme_bw()
+  p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
+    theme_bw()
 
-ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+  ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+}
 
 # -------------------------
 # 5) PR curves from hap.py roc outputs
