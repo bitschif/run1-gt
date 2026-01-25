@@ -12,6 +12,7 @@ project_dir <- if (length(args) > 0) normalizePath(args[1]) else normalizePath("
 
 metrics_long <- file.path(project_dir, "results", "metrics_long.tsv")
 runtime_tsv  <- file.path(project_dir, "results", "runtime.tsv")
+runtime_csv  <- file.path(project_dir, "logs", "runtime.csv")
 bench_dir    <- file.path(project_dir, "results", "benchmarks")
 plot_dir     <- file.path(project_dir, "results", "plots")
 
@@ -80,15 +81,21 @@ if (!file.exists(metrics_long)) {
       Type = any_of(c("VariantType", "Type")),
       `METRIC.Precision` = any_of(c("Precision", "METRIC.Precision")),
       `METRIC.Recall` = any_of(c("Recall", "METRIC.Recall")),
-      `METRIC.F1_Score` = any_of(c("F1", "METRIC.F1_Score", "F1_Score"))
+      `METRIC.F1_Score` = any_of(c("F1", "METRIC.F1_Score", "F1_Score")),
+      ROC_AUC = any_of(c("ROC_AUC", "AUC", "METRIC.ROC_AUC"))
     ) %>%
-    select(caller, any_of("Type"), any_of(c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")))
+    select(
+      caller,
+      any_of("Type"),
+      any_of(c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score", "ROC_AUC")),
+      any_of("RuntimeSeconds")
+    )
 
   if (!"Type" %in% names(metrics_long_data)) {
     metrics_long_data$Type <- NA_character_
   }
 
-  for (col in c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score")) {
+  for (col in c("METRIC.Precision", "METRIC.Recall", "METRIC.F1_Score", "ROC_AUC")) {
     if (!col %in% names(metrics_long_data)) {
       metrics_long_data[[col]] <- NA_character_
     }
@@ -113,19 +120,33 @@ if (!file.exists(metrics_long)) {
     mutate(
       `METRIC.Precision` = as.numeric(`METRIC.Precision`),
       `METRIC.Recall` = as.numeric(`METRIC.Recall`),
-      `METRIC.F1_Score` = as.numeric(`METRIC.F1_Score`)
+      `METRIC.F1_Score` = as.numeric(`METRIC.F1_Score`),
+      ROC_AUC = as.numeric(ROC_AUC),
+      RuntimeSeconds = as.numeric(RuntimeSeconds)
     ) %>%
     mutate(
       caller = tolower(caller),
       Type = toupper(Type)
-    )
+    ) %>%
+    group_by(caller, Type) %>%
+    summarise(
+      `METRIC.Precision` = mean(`METRIC.Precision`, na.rm = TRUE),
+      `METRIC.Recall` = mean(`METRIC.Recall`, na.rm = TRUE),
+      `METRIC.F1_Score` = mean(`METRIC.F1_Score`, na.rm = TRUE),
+      ROC_AUC = mean(ROC_AUC, na.rm = TRUE),
+      RuntimeSeconds = mean(RuntimeSeconds, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(if_any(c(`METRIC.Precision`, `METRIC.Recall`, `METRIC.F1_Score`, ROC_AUC), ~ is.finite(.)))
 
   fwrite(metrics_long_data, metrics_long, sep = "\t")
 }
 
-has_runtime <- file.exists(runtime_tsv)
+has_runtime_tsv <- file.exists(runtime_tsv)
+has_runtime_csv <- file.exists(runtime_csv)
+has_runtime <- has_runtime_tsv || has_runtime_csv
 if (!has_runtime) {
-  warning("Missing results/runtime.tsv. Skipping runtime plots.")
+  warning("Missing results/runtime.tsv and logs/runtime.csv. Skipping runtime plots.")
 }
 
 dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
@@ -157,7 +178,8 @@ m_long <- m %>%
     cols = c(recall, precision, f1),
     names_to = "metric",
     values_to = "value"
-  )
+  ) %>%
+  filter(is.finite(value))
 
 p_bar <- ggplot(m_long, aes(x = caller, y = value, fill = metric)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7) +
@@ -178,46 +200,97 @@ ggsave(file.path(plot_dir, "01_bar_precision_recall_f1.png"), p_bar, width = 12,
 # -------------------------
 hm <- m %>%
   select(caller, Type, f1 = `METRIC.F1_Score`) %>%
+  filter(is.finite(f1)) %>%
   pivot_wider(names_from = Type, values_from = f1) %>%
   arrange(caller)
 
-hm_mat <- hm %>%
-  select(-caller) %>%
-  as.matrix()
+if (nrow(hm) > 0) {
+  hm_mat <- hm %>%
+    select(-caller) %>%
+    as.matrix()
 
-rownames(hm_mat) <- hm$caller
+  rownames(hm_mat) <- hm$caller
 
-png(file.path(plot_dir, "02_heatmap_f1.png"), width = 900, height = 450)
-pheatmap(
-  hm_mat,
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  main = "F1 heatmap (ALL) - SNP vs INDEL"
-)
-dev.off()
+  png(file.path(plot_dir, "02_heatmap_f1.png"), width = 900, height = 450)
+  pheatmap(
+    hm_mat,
+    cluster_rows = FALSE,
+    cluster_cols = FALSE,
+    main = "F1 heatmap (ALL) - SNP vs INDEL"
+  )
+  dev.off()
+}
 
 # -------------------------
 # 4) Runtime plot (wall + max RSS)
 # -------------------------
 if (has_runtime) {
-  rt <- fread(runtime_tsv) %>%
-    as_tibble() %>%
-    mutate(caller = factor(caller, levels = caller_levels))
+  if (has_runtime_csv) {
+    rt_csv <- suppressMessages(readr::read_csv(runtime_csv, col_names = c("caller", "time_s"))) %>%
+      mutate(
+        caller = tolower(caller),
+        time_s = as.numeric(time_s)
+      ) %>%
+      filter(is.finite(time_s)) %>%
+      mutate(caller = factor(caller, levels = caller_levels))
 
-  p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
-    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-    labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
-    theme_bw()
+    p_time <- ggplot(rt_csv, aes(x = caller, y = time_s)) +
+      geom_col(width = 0.7, fill = "#4C78A8") +
+      labs(title = "Runtime (seconds) theo caller", x = "Caller", y = "Time (s)") +
+      theme_bw()
 
-  ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
+    ggsave(file.path(plot_dir, "03_runtime_seconds.png"), p_time, width = 8, height = 4, dpi = 200)
+  }
 
-  p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
-    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-    labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
-    theme_bw()
+  if (has_runtime_tsv) {
+    rt <- fread(runtime_tsv) %>%
+      as_tibble() %>%
+      mutate(caller = factor(caller, levels = caller_levels))
 
-  ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+    p_time <- ggplot(rt, aes(x = caller, y = wall_s, fill = step)) +
+      geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+      labs(title = "Runtime (wall seconds) theo buoc", x = "Caller", y = "Wall time (s)") +
+      theme_bw()
+
+    ggsave(file.path(plot_dir, "03_runtime_wall.png"), p_time, width = 10, height = 4, dpi = 200)
+
+    p_mem <- ggplot(rt, aes(x = caller, y = max_rss_kb / 1024, fill = step)) +
+      geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+      labs(title = "Max RSS theo buoc", x = "Caller", y = "Max RSS (MB)") +
+      theme_bw()
+
+    ggsave(file.path(plot_dir, "04_runtime_maxrss.png"), p_mem, width = 10, height = 4, dpi = 200)
+  }
 }
+
+# -------------------------
+# 4b) Per-variant metric comparison (Precision/Recall/F1/ROC)
+# -------------------------
+metric_variant <- m %>%
+  select(
+    caller,
+    Type,
+    Precision = `METRIC.Precision`,
+    Recall = `METRIC.Recall`,
+    F1 = `METRIC.F1_Score`,
+    ROC = ROC_AUC
+  ) %>%
+  pivot_longer(cols = c(Precision, Recall, F1, ROC), names_to = "metric", values_to = "value") %>%
+  filter(is.finite(value))
+
+p_metrics <- ggplot(metric_variant, aes(x = caller, y = value, fill = metric)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  facet_wrap(~Type, nrow = 1) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(
+    title = "Precision / Recall / F1 / ROC theo variant",
+    x = "Variant caller",
+    y = "Gia tri"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+
+ggsave(file.path(plot_dir, "03b_metrics_per_variant.png"), p_metrics, width = 12, height = 4, dpi = 200)
 
 # -------------------------
 # 5) PR curves from hap.py roc outputs
