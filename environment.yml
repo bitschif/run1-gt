@@ -1,0 +1,17 @@
+name: variantbenchmarking
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - nextflow
+  - gatk4
+  - bcftools
+  - samtools
+  - tabix
+  - hap.py
+  - freebayes
+  - strelka
+  - art
+  - simutator
+  - python=3.10
