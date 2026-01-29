@@ -74,11 +74,18 @@ export PREFIX="${SAMPLE_NAME}_${CHR_TO_USE}"
 export READ_GROUP="@RG\\tID:${SAMPLE_NAME}\\tSM:${SAMPLE_NAME}\\tPL:ILLUMINA\\tLB:lib1\\tPU:unit1"
 
 #-------------------------------------------------------------------------------
+# TOOL VERSIONS (align with nf-core/sarek latest)
+#-------------------------------------------------------------------------------
+export DEEPVARIANT_VERSION="1.7.0"
+export GATK_VERSION="4.6.0.0"
+export FREEBAYES_VERSION="1.3.6"
+export STRELKA2_VERSION="2.9.10"
+
+#-------------------------------------------------------------------------------
 # DOCKER IMAGES
 #-------------------------------------------------------------------------------
-export DEEPVARIANT_VERSION="1.6.1"
 export DEEPVARIANT_IMAGE="google/deepvariant:${DEEPVARIANT_VERSION}"
-export STRELKA2_IMAGE="quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
+export STRELKA2_IMAGE="quay.io/biocontainers/strelka:${STRELKA2_VERSION}--h9ee0642_1"
 
 #-------------------------------------------------------------------------------
 # VARIANT CALLER PARAMETERS
