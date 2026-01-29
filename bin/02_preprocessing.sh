@@ -15,8 +15,8 @@ log_info "===== STEP 02: Preprocessing (GATK Best Practices) ====="
 start_timer
 
 # Input
-R1="${SIM_DIR}/${PREFIX}_R1.fastq.gz"
-R2="${SIM_DIR}/${PREFIX}_R2.fastq.gz"
+R1="${FASTQ_1:-${SIM_DIR}/${PREFIX}_R1.fastq.gz}"
+R2="${FASTQ_2:-${SIM_DIR}/${PREFIX}_R2.fastq.gz}"
 
 check_file "${R1}" || exit 1
 check_file "${R2}" || exit 1
@@ -77,7 +77,7 @@ bwa mem \
     -t "${THREADS}" \
     -R "${READ_GROUP}" \
     -M \
-    "${REF_FASTA}" \
+    "${BWA_REFERENCE}" \
     "${TRIM_R1}" "${TRIM_R2}" \
     2> "${LOG_DIR}/bwa_mem.log" | \
 samtools sort -@ "${THREADS}" -m 2G -o "${ALIGNED_BAM}" -

@@ -1,0 +1,2 @@
+sample,fastq_1,fastq_2,readgroup_id,platform,library,lane,center,instrument
+SAMPLE_001,/path/to/SAMPLE_001_R1.fastq.gz,/path/to/SAMPLE_001_R2.fastq.gz,SAMPLE_001,ILLUMINA,lib1,1,center1,inst1
